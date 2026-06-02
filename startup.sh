@@ -4,6 +4,9 @@
 # Запускать из корня проекта: ./startup.sh
 set -euo pipefail
 
+# Используем BuildKit-сборщик (убирает предупреждение про legacy builder).
+export DOCKER_BUILDKIT=1
+
 IMAGE="plane_ticket_bot"
 CONTAINER="plane_ticket_bot"
 
