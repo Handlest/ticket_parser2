@@ -1,0 +1,12 @@
+services:
+  bot:
+    build: .
+    container_name: plane_ticket_bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Файл setup.yaml монтируется внутрь — можно править конфиг без пересборки.
+      - ./setup.yaml:/app/setup.yaml:ro
+      # Каталог с БД SQLite сохраняется между перезапусками.
+      - ./data:/app/data
