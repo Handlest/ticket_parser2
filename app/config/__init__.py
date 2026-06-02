@@ -5,6 +5,7 @@ from app.config.loader import (
     LoggingConfig,
     ProvidersConfig,
     SchedulerConfig,
+    SearchLogConfig,
     TelegramConfig,
     load_config,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "LoggingConfig",
     "ProvidersConfig",
     "SchedulerConfig",
+    "SearchLogConfig",
     "TelegramConfig",
     "load_config",
 ]

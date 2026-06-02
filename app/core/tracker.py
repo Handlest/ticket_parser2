@@ -32,6 +32,8 @@ from app.providers import (
 )
 
 logger = logging.getLogger(__name__)
+# Отдельный логгер результатов поиска (настраивается в main.setup_search_logging).
+search_logger = logging.getLogger("search")
 
 
 class Tracker:
@@ -41,10 +43,12 @@ class Tracker:
         repository: TrackingRepository,
         notifier: Notifier,
         resolver: CityResolver | None = None,
+        log_searches: bool = False,
     ) -> None:
         self._config = config
         self._repo = repository
         self._notifier = notifier
+        self._log_searches = log_searches
         self._providers: list[BaseProvider] = build_enabled_providers(
             config.providers, resolver
         )
@@ -113,6 +117,11 @@ class Tracker:
         results = await asyncio.gather(
             *(provider.safe_search(query) for provider in self._providers)
         )
+
+        if self._log_searches:
+            for provider, batch in zip(self._providers, results):
+                self._log_search(provider, query, batch)
+
         offers: list[FlightOffer] = [offer for batch in results for offer in batch]
 
         # Подходящие — дешевле порога.
@@ -135,3 +144,23 @@ class Tracker:
         logger.info(
             "Уведомление отправлено: tracking=%s цена=%s", tracking.id, best.price
         )
+
+    @staticmethod
+    def _log_search(
+        provider: BaseProvider, query: SearchQuery, offers: list[FlightOffer]
+    ) -> None:
+        """Пишет результат одного похода на сайт в лог поисков."""
+        route = f"{query.origin}→{query.destination}"
+        head = (
+            f"{provider.display_name} | {route} | {query.departure_date} | "
+            f"{query.benefit.label}"
+        )
+        if not offers:
+            search_logger.info("%s | офферов: 0", head)
+            return
+        min_price = min(o.price for o in offers)
+        lines = [f"{head} | офферов: {len(offers)} | мин. цена: {min_price:.0f} {query.currency}"]
+        for offer in offers:
+            extra = f" · {offer.details}" if offer.details else ""
+            lines.append(f"    - {offer.price:.0f} {offer.currency}{extra}")
+        search_logger.info("\n".join(lines))

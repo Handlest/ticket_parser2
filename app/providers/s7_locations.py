@@ -197,13 +197,19 @@ class CityResolver:
 
     @staticmethod
     def _parse(value: str, data: dict) -> tuple[str, str] | None:
-        """Выбирает лучший вариант из ответа справочника."""
+        """Выбирает лучший вариант из ответа справочника.
+
+        Берём первого кандидата: S7 ранжирует ответ по релевантности к запросу.
+        Для многопортовых городов первым идёт агрегатный код (например «Москва»
+        -> MOW = все аэропорты), для однопортовых — сам аэропорт. Нельзя слепо
+        предпочитать type=="city": для «Улан-Удэ» (UUD, один аэропорт) это увело
+        бы выбор на «Улан-Батор» (ULN), который оказался ниже в списке.
+        """
         candidates = data.get("c") or []
         if not candidates:
             return None
 
-        # Предпочитаем агрегатную запись города; иначе берём первую подходящую.
-        best = next((c for c in candidates if c.get("type") == "city"), candidates[0])
+        best = candidates[0]
         iata = (best.get("ibeCode") or best.get("iata") or "").strip().upper()
         title = (best.get("name") or "").strip()
         if len(iata) != 3 or not iata.isalpha():

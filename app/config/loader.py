@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # Шаблон для подстановки переменных окружения: ${VAR_NAME}
 _ENV_PATTERN = re.compile(r"\$\{([^}^{]+)\}")
@@ -22,6 +22,21 @@ _ENV_PATTERN = re.compile(r"\$\{([^}^{]+)\}")
 class TelegramConfig(BaseModel):
     token: str
     allowed_user_ids: list[int] = Field(default_factory=list)
+
+    @field_validator("allowed_user_ids", mode="before")
+    @classmethod
+    def _parse_allowed_user_ids(cls, value: object) -> object:
+        """Допускает задание id строкой (из .env): "111,222" → [111, 222].
+
+        Пустая строка (переменная окружения задана, но пустая) даёт пустой
+        список — это означает «доступ всем». Список в YAML тоже продолжает
+        работать как раньше.
+        """
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [int(part) for part in value.split(",") if part.strip()]
+        return value
 
 
 class DatabaseConfig(BaseModel):
@@ -55,6 +70,14 @@ class LoggingConfig(BaseModel):
     backup_count: int = 3
 
 
+class SearchLogConfig(BaseModel):
+    # Записывать ли результаты каждого похода на сайт (офферы + мин. цена).
+    enabled: bool = False
+    # Отдельный файл лога поисков. Пусто = писать в общий лог/консоль.
+    # Ротация переиспользует параметры logging (5 МБ / 3 файла по умолчанию).
+    file: str = "data/logs/searches.log"
+
+
 class AppConfig(BaseModel):
     telegram: TelegramConfig
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
@@ -62,6 +85,7 @@ class AppConfig(BaseModel):
     providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
     locale: LocaleConfig = Field(default_factory=LocaleConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    search_log: SearchLogConfig = Field(default_factory=SearchLogConfig)
 
 
 def _substitute_env(value: str) -> str:

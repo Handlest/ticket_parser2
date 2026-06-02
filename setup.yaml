@@ -7,9 +7,10 @@
 telegram:
   # Токен берётся из переменной окружения TELEGRAM_BOT_TOKEN (файл .env).
   token: "${TELEGRAM_BOT_TOKEN}"
-  # Список Telegram user_id, которым разрешён доступ. Пустой список = доступ всем.
+  # Список Telegram user_id, которым разрешён доступ. Берётся из переменной
+  # окружения ALLOWED_USER_IDS (файл .env): "111,222". Пусто = доступ всем.
   # Узнать свой id можно у бота @userinfobot.
-  allowed_user_ids: [954179273]
+  allowed_user_ids: "${ALLOWED_USER_IDS}"
 
 database:
   # Путь к файлу SQLite. Каталог data/ монтируется как volume в docker-compose.
@@ -37,6 +38,14 @@ locale:
   # Валюта и язык. По умолчанию рубли / русский.
   currency: "RUB"
   language: "ru"
+
+search_log:
+  # Записывать ли результаты каждого похода на сайт: все найденные билеты и
+  # минимальную цену. false = не вести лог поисков.
+  enabled: true
+  # Отдельный файл лога поисков. Пусто = писать в общий лог/консоль.
+  # Ротация — как у logging (5 МБ на файл, 3 архивные копии).
+  file: "data/logs/searches.log"
 
 logging:
   level: "INFO"

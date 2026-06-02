@@ -12,7 +12,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
 from app.bot import AccessMiddleware, router
-from app.config import LoggingConfig, load_config
+from app.config import LoggingConfig, SearchLogConfig, load_config
 from app.core import Tracker
 from app.db import AirportRepository, Database, TrackingRepository
 from app.notifications import Notifier
@@ -56,9 +56,33 @@ def setup_logging(cfg: LoggingConfig) -> None:
     add_file_handler(cfg.error_file, logging.ERROR)
 
 
+def setup_search_logging(cfg: SearchLogConfig, max_bytes: int, backups: int) -> None:
+    """Настраивает отдельный логгер поисков ("search").
+
+    При указанном файле пишем туда (своя ротация) и НЕ дублируем в общий
+    лог/консоль (propagate=False). Если файл не задан — записи идут в общий лог.
+    """
+    if not cfg.enabled or not cfg.file:
+        return
+    search_logger = logging.getLogger("search")
+    search_logger.setLevel(logging.INFO)
+    Path(cfg.file).parent.mkdir(parents=True, exist_ok=True)
+    handler = RotatingFileHandler(
+        cfg.file, maxBytes=max_bytes, backupCount=backups, encoding="utf-8"
+    )
+    handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    search_logger.addHandler(handler)
+    search_logger.propagate = False
+
+
 async def main() -> None:
     config = load_config()
     setup_logging(config.logging)
+    setup_search_logging(
+        config.search_log,
+        config.logging.max_file_size_mb * 1024 * 1024,
+        config.logging.backup_count,
+    )
     logger.info("Запуск приложения")
 
     # БД (миграций нет — таблицы создаются здесь).
@@ -93,7 +117,7 @@ async def main() -> None:
 
     # Планировщик проверок.
     notifier = Notifier(bot)
-    tracker = Tracker(config, repository, notifier, resolver)
+    tracker = Tracker(config, repository, notifier, resolver, config.search_log.enabled)
     tracker.start()
 
     try:
